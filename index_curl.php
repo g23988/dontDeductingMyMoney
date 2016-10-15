@@ -12,53 +12,100 @@ $username = '我的名字';
 $password = '神秘密碼';
 
 
-
 //main
-print_r("ready...\n");
-print_r("connect...$url\n");
+$config = new Config($username,$password,$url);
+$run = new Signflow($config);
+if($run->testURL()){
+	//登入
+	if(!$run->login()) exit();
+	//簽到
+	$run->signin();
+	//結束
+	$run->close();
+};
 
-//test url exist
-if(!testURL($url)) exit();
 
-
-//登入開始
-$loginurl = $url."index.php";
-$ckfile = tempnam ("/tmp", "CURLCOOKIE");
-$ch = curl_init ($loginurl);
-curl_setopt($ch, CURLOPT_URL, $loginurl);
-curl_setopt($ch, CURLOPT_POST, true); // 啟用POST
-curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query( array( "op"=>"loginVerify", "portalid"=>$username,"pwd"=>$password) )); 
-curl_setopt ($ch, CURLOPT_COOKIEJAR, $ckfile); 
-curl_setopt ($ch, CURLOPT_RETURNTRANSFER, true);
-$content = curl_exec($ch); 
-
-//驗證登入
-if(strpos($content,"location.href='index.php?op=index'")===false){
-	print_r("登入失敗\n程式終止\n");
-        exit();
+//class
+class Config{
+	var $_username,$_password,$_url;
+        var $_op = "loginVerify";
+	function __construct($username,$password,$url){
+		$this->_username = $username;
+		$this->_password = $password;
+		$this->_url = $url;
+	}
+	function username(){
+		return $this->_username;
+	}
+	function password(){
+		return $this->_password;
+	}
+	function op(){
+		return $this->_op;
+	}
+	function URL(){
+		return $this->_url;
+	}
+	function loginURL(){
+		return $this->_url."index.php";
+	}
+	function signURL(){
+		return $this->_url."oncall.php?op=sign";
+	}
 }
-print_r("登入成功\n");
-
-//簽到開始
-curl_setopt($ch, CURLOPT_HTTPGET, 1);
-curl_setopt($ch, CURLOPT_POST, 0);
-$signurl = $url."oncall.php?op=sign";
-curl_setopt($ch, CURLOPT_URL, $signurl);
-$content = curl_exec($ch);
-print_r("簽到成功\n");
-
-curl_close($ch);
 
 
-
-
-function testURL($targetURL){
-	$file_headers = @get_headers($targetURL);
-	if(!$file_headers || $file_headers[0] == 'HTTP/1.1 404 Not Found'){
-		print_r("URL $targetURL does not exist\n");
-        	return false;
+class Signflow{
+	var $_config;
+	var $_ckfile;
+	var $_ch;
+	function __construct(Config $config){
+		$this->_config = $config;
+	}
+	//測試網站
+	function testURL(){
+		$file_headers = @get_headers($this->_config->URL());
+		if(!$file_headers || $file_headers[0] == 'HTTP/1.1 404 Not Found'){
+			print_r("URL $targetURL does not exist\n");
+	        	return false;
 		}
-	return true;
+		return true;
+	}
+	//登入
+	function login(){
+		$this->_ckfile = tempnam ("/tmp", "CURLCOOKIE");
+		$this->_ch = curl_init ();
+		curl_setopt($this->_ch, CURLOPT_URL, $this->_config->loginURL());
+		curl_setopt($this->_ch, CURLOPT_POST, true);
+		curl_setopt($this->_ch, CURLOPT_POSTFIELDS, http_build_query( 
+			array( "op"=>"loginVerify", 
+				"portalid"=>$this->_config->username(),
+				"pwd"=>$this->_config->password()
+				) 
+			)); 
+		curl_setopt ($this->_ch, CURLOPT_COOKIEJAR, $this->_ckfile); 
+		curl_setopt ($this->_ch, CURLOPT_RETURNTRANSFER, true);
+		$content = curl_exec($this->_ch); 
+		if(strpos($content,"location.href='index.php?op=index'")===false){
+ 		       print_r("登入失敗\n程式終止\n");
+		       return false;
+		}
+		print_r("登入成功\n");
+		return true;
+	}
+	//簽到
+	function signin(){
+		curl_setopt($this->_ch, CURLOPT_POST, 0);
+		curl_setopt($this->_ch, CURLOPT_HTTPGET, 1);
+		curl_setopt($this->_ch, CURLOPT_URL, $this->_config->signURL());
+		$content = curl_exec($this->_ch);
+		print_r("簽到完成\n");
+	}
+	//關閉連結
+	function close(){
+		curl_close($this->_ch);
+	}
+
 }
 
 ?>
