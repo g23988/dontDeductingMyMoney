@@ -66,7 +66,7 @@ class Signflow{
 	function testURL(){
 		$file_headers = @get_headers($this->_config->URL());
 		if(!$file_headers || $file_headers[0] == 'HTTP/1.1 404 Not Found'){
-			print_r("URL $targetURL does not exist\n");
+			print_r("URL $this->_config->URL() 不存在\n");
 	        	return false;
 		}
 		return true;
